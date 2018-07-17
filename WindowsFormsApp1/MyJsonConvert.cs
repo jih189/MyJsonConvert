@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Remoting;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -240,11 +241,9 @@ namespace WindowsFormsApp1
             }
             return res;
         }
-        public static T MyDtoO<T>(Dictionary<string, object> list) where T : new()
+        public static void MyDtoO(object res, Dictionary<string, object> list)
         {
-            var MyType = typeof(T);
-            T res = new T();
-            foreach (System.Reflection.PropertyInfo item in MyType.GetProperties())
+            foreach (System.Reflection.PropertyInfo item in res.GetType().GetProperties())
             {
                 var propname = '"' + item.Name + '"';
                 if (!list.ContainsKey(propname))
@@ -262,46 +261,40 @@ namespace WindowsFormsApp1
                 }
                 else if (check == "List`1")
                 {
-                    var checktype = (list[propname] as List<object>)[0].GetType();
-                    var some = list[propname] as List<object>;
-
-                    if (checktype.Name == "Int32")
-                    {
-                        var target = some.ConvertAll(x => (int)x);
-                        item.SetValue(res, target, null);
-                    }
-                    else if (checktype.Name == "String")
-                    {
-                        var target = some.ConvertAll(x => (String)x);
-                        item.SetValue(res, target, null);
-                    }
+                    var result = MyDtoOForList(item.PropertyType.FullName, list[propname]);
+                    item.SetValue(res, result);
+                }
+                else
+                {
+                    var input = Activator.CreateInstance(item.PropertyType);
+                    MyDtoO(input, list[propname] as Dictionary<string, object>);
+                    item.SetValue(res, input);
                 }
             }
-            return default(T);
         }
-        public static List<object> MyDtoOForList(List<object> list)
+        public static object MyDtoOForList(string listType, object input)
         {
-
-            List<object> res = list;
-            //foreach (var data in list)
-            //{
-            //    if (data is int)
-            //    {
-            //        res.Add(data);
-            //    }
-            //    else if (data is string)
-            //    {
-            //        res.Add(data);
-            //    }
-            //    else if (data is List<object>)
-            //    {
-            //        res.Add(MyDtoOForList(data as List<object>));
-            //    }
-            //    else
-            //    {
-            //        res.Add(MyDtoO<object>(data as Dictionary<string, object>));
-            //    }
-            //}
+            Type type = Type.GetType(listType);
+            object res = Activator.CreateInstance(type);
+            foreach (var item in input as List<object>)
+            {
+                if (type.GetGenericArguments().Single().Name == "List`1")
+                {
+                    string elementType = type.GetGenericArguments().Single().FullName;
+                    res.GetType().GetMethod("Add").Invoke(res, new object[] { MyDtoOForList(elementType, item) });
+                }
+                else if (type.GetGenericArguments().Single().Name == "Int32" || type.GetGenericArguments().Single().Name == "String")
+                {
+                    res.GetType().GetMethod("Add").Invoke(res, new object[] { item });
+                }
+                else
+                {
+                    Type objecttype = Type.GetType(type.GetGenericArguments().Single().FullName);
+                    object temp = Activator.CreateInstance(objecttype);
+                    MyDtoO(temp, item as Dictionary<string, object>);
+                    res.GetType().GetMethod("Add").Invoke(res, new object[] { temp });
+                }
+            }
             return res;
         }
     }

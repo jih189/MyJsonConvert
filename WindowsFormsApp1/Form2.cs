@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Diagnostics;
 
 namespace WindowsFormsApp1
 {
@@ -20,12 +21,28 @@ namespace WindowsFormsApp1
 
         private void button1_Click(object sender, EventArgs e)
         {
-            var list = new TestModel {
-            Id=1,str="字符串",listid=new List<int> {1,2,3 },
-            liststr=new List<string> { "s,1","s2","s3","s4\\\\"}
+            var model3 = new TestModel3
+            {
+                Id = 1,
+                listint = new List<int> { 1, 23, 4, 32 },
+                liststr = new List<string> { "111", "22", "33" }
             };
 
-            var json = JsonConvert.SerializeObject(list);
+            var list = new TestModel
+            {
+                Id = 1,
+                listint = new List<int> { 1, 23, 4, 32 },
+                liststr = new List<string> { "111", "22", "33" },
+                model3 = model3
+            };
+
+            var list1 = new TestModel1
+            {
+                intlist = new List<TestModel> { list, list },
+                testmodel = list
+            };
+
+            var json = JsonConvert.SerializeObject(list1);
 
             textBox1.Text = json;
         }
@@ -39,18 +56,58 @@ namespace WindowsFormsApp1
         {
 
             var result = MyJsonConvert.MyProcess(MyJsonConvert.MyKeyValue(textBox1.Text.Trim()));
-            var final = MyJsonConvert.MyDtoO<TestModel>(result);
-            //var result = MyJsonConvert.MySplitForSquare(textBox1.Text.Trim());
+            TestModel1 res = new TestModel1();
+            Stopwatch sw = new Stopwatch();
+
+            sw.Start();
+            for (int i = 0; i < 10000; i++)
+            {
+                MyJsonConvert.MyDtoO(res, result);
+            }
+            sw.Stop();
+
+            Console.WriteLine("Elapsed={0}", sw.Elapsed);
+
+
+            Stopwatch sw1 = new Stopwatch();
+
+            sw1.Start();
+            for (int i = 0; i < 10000; i++)
+            {
+               var value = JsonConvert.DeserializeObject<TestModel1>(textBox1.Text.Trim());
+            }
+            sw1.Stop();
+
+            Console.WriteLine("Elapsed1={0}", sw1.Elapsed);
+
+
+         
+
+
         }
     }
 
-    public class TestModel {
-
+    public class TestModel
+    {
         public int Id { set; get; }
+        public List<int> listint { set; get; }
 
-        public string str { set; get; }
+        public List<string> liststr { set; get; }
 
-        public List<int> listid { set; get; }
+        public TestModel3 model3 { set; get; }
+
+    }
+    public class TestModel1
+    {
+        public TestModel testmodel { set; get; }
+
+        public List<TestModel> intlist { set; get; }
+    }
+
+    public class TestModel3
+    {
+        public int Id { set; get; }
+        public List<int> listint { set; get; }
 
         public List<string> liststr { set; get; }
     }
